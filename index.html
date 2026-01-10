@@ -54,7 +54,7 @@
                 </div>
 
                 <div id="verify-area" class="flex justify-center">
-                    <div class="qr-container bg-white p-4 rounded-xl border-2 border-slate-100 shadow-inner relative group">
+                    <div class="qr-container bg-white p-6 rounded-xl border-2 border-slate-100 shadow-inner relative group">
                         <div id="scanner-visual" class="scanner-line"></div>
                         <div id="qrcode"></div>
                         <div id="overlay" class="absolute inset-0 bg-white/90 backdrop-blur-[2px] flex items-center justify-center hidden z-30">
@@ -119,22 +119,27 @@
 
         let timeLeft = 60;
         let timerInterval;
+        let fallbackInterval;
         let currentSid = '';
         let channel = null;
+        let isVerified = false;
 
         async function generateNewQR() {
+            isVerified = false;
             const qrContainer = document.getElementById("qrcode");
             qrContainer.innerHTML = "";
             currentSid = Math.random().toString(36).substring(2, 12);
-            const fullUrl = `${window.location.origin}${window.location.pathname}?sid=${currentSid}&view=mobile`;
+            
+            let cleanBase = window.location.origin + window.location.pathname;
+            const finalUrl = `${cleanBase}?sid=${currentSid}&view=mobile`;
             
             new QRCode(qrContainer, {
-                text: fullUrl,
-                width: 200,
-                height: 200,
+                text: finalUrl,
+                width: 160,
+                height: 160,
                 colorDark: "#0f172a",
                 colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
+                correctLevel: QRCode.CorrectLevel.L
             });
 
             document.getElementById('overlay').classList.add('hidden');
@@ -144,32 +149,59 @@
                 .from('verification_sessions')
                 .insert([{ id: currentSid, status: 'pending' }]);
 
-            if (channel) supabaseClient.removeChannel(channel);
+            if (channel) {
+                await supabaseClient.removeChannel(channel);
+            }
             
             channel = supabaseClient
                 .channel(`session-${currentSid}`)
                 .on(
                     'postgres_changes',
-                    { event: 'UPDATE', schema: 'public', table: 'verification_sessions', filter: `id=eq.${currentSid}` },
+                    { 
+                        event: 'UPDATE', 
+                        schema: 'public', 
+                        table: 'verification_sessions', 
+                        filter: `id=eq.${currentSid}` 
+                    },
                     (payload) => {
-                        if (payload.new.status === 'verified') {
+                        if (payload.new.status === 'verified' && !isVerified) {
                             handleSuccess();
                         }
                     }
                 )
                 .subscribe();
+
+            if (fallbackInterval) clearInterval(fallbackInterval);
+            fallbackInterval = setInterval(checkStatusManual, 2000);
             
             startTimer();
         }
 
+        async function checkStatusManual() {
+            if (isVerified) return;
+            const { data, error } = await supabaseClient
+                .from('verification_sessions')
+                .select('status')
+                .eq('id', currentSid)
+                .maybeSingle();
+            
+            if (data && data.status === 'verified') {
+                handleSuccess();
+            }
+        }
+
         function handleSuccess() {
+            if (isVerified) return;
+            isVerified = true;
+            if (fallbackInterval) clearInterval(fallbackInterval);
+            if (timerInterval) clearInterval(timerInterval);
+            
             document.getElementById('status-dot').classList.replace('bg-amber-400', 'bg-green-500');
             document.getElementById('status-label').textContent = "Handshake complete...";
             
             setTimeout(() => {
                 document.getElementById('setup-view').classList.add('hidden');
                 document.getElementById('success-view').classList.remove('hidden');
-                if (timerInterval) clearInterval(timerInterval);
                 feather.replace();
                 
                 const params = new URLSearchParams(window.location.search);
@@ -178,7 +210,15 @@
                 if (redirectUrl) {
                     document.getElementById('redirect-msg').classList.remove('hidden');
                     setTimeout(() => {
-                        window.parent.location.href = redirectUrl;
+                        try {
+                            if (window.self !== window.top) {
+                                window.top.location.href = redirectUrl;
+                            } else {
+                                window.location.href = redirectUrl;
+                            }
+                        } catch (e) {
+                            window.location.href = redirectUrl;
+                        }
                     }, 1500);
                 }
             }, 800);
@@ -193,6 +233,7 @@
                 updateUI();
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
+                    if (fallbackInterval) clearInterval(fallbackInterval);
                     document.getElementById('overlay').classList.remove('hidden');
                     document.getElementById('scanner-visual').classList.add('hidden');
                 }
