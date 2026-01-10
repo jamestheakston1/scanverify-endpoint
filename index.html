@@ -115,13 +115,12 @@
         const SUPABASE_URL = 'https://eolqqvhtcxzpahgczvjf.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_fhx-B3Hvc5aexlOzmv39ZQ_Q1HNTtoL';
         
-        // Fix: Renamed variable to avoid collision with global supabase library
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let timeLeft = 60;
         let timerInterval;
         let currentSid = '';
-        let subscription = null;
+        let channel = null;
 
         async function generateNewQR() {
             const qrContainer = document.getElementById("qrcode");
@@ -145,10 +144,10 @@
                 .from('verification_sessions')
                 .insert([{ id: currentSid, status: 'pending' }]);
 
-            if (subscription) supabaseClient.removeChannel(subscription);
+            if (channel) supabaseClient.removeChannel(channel);
             
-            subscription = supabaseClient
-                .channel('schema-db-changes')
+            channel = supabaseClient
+                .channel(`session-${currentSid}`)
                 .on(
                     'postgres_changes',
                     { event: 'UPDATE', schema: 'public', table: 'verification_sessions', filter: `id=eq.${currentSid}` },
