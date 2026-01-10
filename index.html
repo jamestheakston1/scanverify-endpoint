@@ -130,8 +130,17 @@
             qrContainer.innerHTML = "";
             currentSid = Math.random().toString(36).substring(2, 12);
             
-            let cleanBase = window.location.origin + window.location.pathname;
-            const finalUrl = `${cleanBase}?sid=${currentSid}&view=mobile`;
+            let currentUrl = window.location.href;
+            if (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
+                currentUrl = window.location.href;
+            }
+            
+            const urlObj = new URL(currentUrl);
+            const searchParams = new URLSearchParams(urlObj.search);
+            searchParams.set('sid', currentSid);
+            searchParams.set('view', 'mobile');
+            
+            const finalUrl = `${urlObj.origin}${urlObj.pathname}?${searchParams.toString()}`;
             
             new QRCode(qrContainer, {
                 text: finalUrl,
@@ -169,14 +178,10 @@
                         }
                     }
                 )
-                .subscribe((status) => {
-                    if (status === 'SUBSCRIBED') {
-                        console.log('Realtime subscribed for SID:', currentSid);
-                    }
-                });
+                .subscribe();
 
             if (fallbackInterval) clearInterval(fallbackInterval);
-            fallbackInterval = setInterval(checkStatusManual, 1500);
+            fallbackInterval = setInterval(checkStatusManual, 1000);
             
             startTimer();
         }
