@@ -150,11 +150,11 @@
                 .insert([{ id: currentSid, status: 'pending' }]);
 
             if (channel) {
-                await supabaseClient.removeChannel(channel);
+                supabaseClient.removeChannel(channel);
             }
             
             channel = supabaseClient
-                .channel(`session-${currentSid}`)
+                .channel(`session_updates_${currentSid}`)
                 .on(
                     'postgres_changes',
                     { 
@@ -164,22 +164,26 @@
                         filter: `id=eq.${currentSid}` 
                     },
                     (payload) => {
-                        if (payload.new.status === 'verified' && !isVerified) {
+                        if (payload.new && payload.new.status === 'verified') {
                             handleSuccess();
                         }
                     }
                 )
-                .subscribe();
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log('Realtime subscribed for SID:', currentSid);
+                    }
+                });
 
             if (fallbackInterval) clearInterval(fallbackInterval);
-            fallbackInterval = setInterval(checkStatusManual, 2000);
+            fallbackInterval = setInterval(checkStatusManual, 1500);
             
             startTimer();
         }
 
         async function checkStatusManual() {
             if (isVerified) return;
-            const { data, error } = await supabaseClient
+            const { data } = await supabaseClient
                 .from('verification_sessions')
                 .select('status')
                 .eq('id', currentSid)
@@ -193,8 +197,10 @@
         function handleSuccess() {
             if (isVerified) return;
             isVerified = true;
+            
             if (fallbackInterval) clearInterval(fallbackInterval);
             if (timerInterval) clearInterval(timerInterval);
+            if (channel) supabaseClient.removeChannel(channel);
             
             document.getElementById('status-dot').classList.replace('bg-amber-400', 'bg-green-500');
             document.getElementById('status-label').textContent = "Handshake complete...";
@@ -271,7 +277,7 @@
                         document.getElementById('verify-button').classList.replace('bg-blue-600', 'bg-green-600');
                         
                         setTimeout(() => {
-                            document.body.innerHTML = '<div class="min-h-screen bg-slate-900 flex items-center justify-center p-6"><div class="text-white text-center font-bold">Verification complete. You can close this tab.</div></div>';
+                            document.body.innerHTML = '<div class="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-white text-center font-bold">Verification successful. Returning to desktop...</div>';
                         }, 1000);
                     }
                 };
