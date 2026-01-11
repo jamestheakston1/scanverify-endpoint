@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ScanVerify</title>
+    <title>ScanVerify | Secure Human Verification</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/feather-icons"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -26,144 +26,288 @@
             position: relative;
             overflow: hidden;
         }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        html { scroll-behavior: smooth; }
+        
+        .modal-overlay {
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            transition: opacity 0.3s ease;
+        }
+
+        #get-started-modal.hidden {
+            display: none;
+        }
+
+        #get-started-modal:not(.hidden) .modal-content {
+            animation: modalIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        #get-started-modal.closing .modal-content {
+            animation: modalOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        #get-started-modal.closing .modal-overlay {
+            opacity: 0;
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        @keyframes modalOut {
+            from { opacity: 1; transform: scale(1) translateY(0); }
+            to { opacity: 0; transform: scale(0.95) translateY(20px); }
+        }
+
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .scroll-reveal.active {
+            opacity: 1;
+            transform: translateY(0);
         }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
+<body class="bg-white text-slate-900 overflow-x-hidden">
 
-    <div id="desktop-view" class="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+    <nav class="fixed w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
             <div class="flex items-center gap-2">
-                <div class="bg-blue-600 p-1.5 rounded-lg">
-                    <i data-feather="shield" class="text-white w-5 h-5"></i>
+                <div class="bg-blue-600 p-2 rounded-xl">
+                    <i data-feather="shield" class="text-white w-6 h-6"></i>
                 </div>
-                <h2 class="font-bold text-slate-800 tracking-tight">ScanVerify <span class="text-blue-600">v2.0</span></h2>
+                <span class="text-xl font-bold tracking-tight text-slate-800">ScanVerify</span>
             </div>
-            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Human Verification</div>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+                <a href="#features" class="hover:text-blue-600 transition-colors">Features</a>
+                <a href="#security" class="hover:text-blue-600 transition-colors">Security</a>
+                <button onclick="toggleModal()" class="bg-slate-900 text-white px-5 py-2.5 rounded-full hover:bg-slate-800 transition-all">Get Started</button>
+            </div>
         </div>
+    </nav>
 
-        <div class="p-8">
-            <div id="setup-view" class="space-y-6">
-                <div class="text-center">
-                    <h3 class="text-lg font-semibold text-slate-800">Prove you're human</h3>
-                    <p class="text-slate-500 text-sm mt-1">Scan this code with your phone to verify your session.</p>
+    <header class="pt-40 pb-20 px-6">
+        <div class="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+            <div class="scroll-reveal active">
+                <div class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
+                    Identity Verification 2.0
                 </div>
+                <h1 class="text-6xl font-extrabold text-slate-900 leading-[1.1] mb-6">
+                    Puzzles are for kids. <span class="text-blue-600">Security</span> is for you.
+                </h1>
+                <p class="text-lg text-slate-500 mb-10 leading-relaxed max-w-xl">
+                    ScanVerify ends the era of identifying traffic lights. By requiring a physical mobile handshake, we make bot-driven attacks physically impossible.
+                </p>
+                <div class="flex flex-wrap gap-4">
+                    <button onclick="toggleModal()" class="px-8 py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">
+                        Get Started
+                    </button>
+                    <a href="#features" class="px-8 py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition-all">
+                        Learn More
+                    </a>
+                </div>
+            </div>
 
-                <div id="verify-area" class="flex justify-center">
-                    <div class="qr-container bg-white p-6 rounded-xl border-2 border-slate-100 shadow-inner relative group">
-                        <div id="scanner-visual" class="scanner-line"></div>
-                        <div id="qrcode"></div>
-                        <div id="overlay" class="absolute inset-0 bg-white/90 backdrop-blur-[2px] flex items-center justify-center hidden z-30">
-                            <button onclick="generateNewQR()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all">
-                                <i data-feather="refresh-cw" class="w-4 h-4"></i>
-                                Refresh Code
+            <div id="demo" class="relative scroll-reveal active">
+                <div class="absolute -inset-4 bg-blue-500 rounded-[3rem] opacity-5 blur-3xl"></div>
+                <div class="relative max-w-sm mx-auto bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <div class="flex items-center gap-2">
+                            <i data-feather="terminal" class="text-blue-600 w-4 h-4"></i>
+                            <span class="text-xs font-bold uppercase tracking-widest text-slate-400">Live Demo</span>
+                        </div>
+                    </div>
+                    <div class="p-8">
+                        <div id="setup-view" class="space-y-6">
+                            <div class="text-center">
+                                <h3 class="text-lg font-bold text-slate-800">Prove your humanity</h3>
+                                <p class="text-slate-400 text-sm">Scan with your mobile device</p>
+                            </div>
+                            <div class="flex justify-center">
+                                <div class="qr-container bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-inner">
+                                    <div class="scanner-line"></div>
+                                    <div id="qrcode"></div>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-[10px] font-bold text-slate-400 uppercase">
+                                    <span>Sync Status</span>
+                                    <span id="status-label" class="text-blue-600 animate-pulse">Awaiting Handshake</span>
+                                </div>
+                                <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                    <div id="progress-bar" class="bg-blue-600 h-full w-0 transition-all duration-500"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="success-view" class="hidden py-8 text-center">
+                            <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i data-feather="check-circle" class="w-8 h-8"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-slate-900">Demo Complete</h3>
+                            <p class="text-slate-500 text-sm mt-2">Mobile handshake confirmed via Supabase.</p>
+                            <button onclick="location.reload()" class="mt-8 px-6 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all">
+                                Restart Demo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div id="get-started-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 modal-overlay" onclick="toggleModal()"></div>
+        <div class="relative bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden modal-content">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-white z-10">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Integrate ScanVerify</h2>
+                    <p class="text-slate-500 text-xs">Point your users to our secure endpoint.</p>
+                </div>
+                <button onclick="toggleModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 grid md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-end">
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Integration Snippet</label>
+                            <span class="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded">v2.0</span>
+                        </div>
+                        <div class="relative group">
+                            <pre class="bg-slate-900 text-blue-300 p-4 rounded-xl text-[11px] font-mono leading-relaxed overflow-x-auto" id="embed-code">
+&lt;iframe 
+  src="https://scanverify-endpoint.pages.dev/captcha?redirect=https://yoursite.com/success" 
+  style="width: 100%; height: 500px; border: none; border-radius: 20px;" 
+  allow="camera"&gt;
+&lt;/iframe&gt;</pre>
+                            <button onclick="copyEmbedCode()" class="absolute top-3 right-3 bg-slate-800/80 hover:bg-slate-700 text-white p-2 rounded-lg transition-all backdrop-blur-sm">
+                                <i data-feather="copy" class="w-4 h-4"></i>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between text-xs text-slate-400 px-1">
-                        <span>Expires in: <span id="timer" class="font-mono text-blue-600 font-bold">01:00</span></span>
-                        <span id="status-text" class="flex items-center gap-1">
-                            <span id="status-dot" class="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span>
-                            <span id="status-label">Awaiting Mobile Scan...</span>
-                        </span>
-                    </div>
-                    <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                        <div id="progress-bar" class="bg-blue-600 h-full w-full transition-all duration-1000 linear"></div>
+                <div class="space-y-4 flex flex-col">
+                    <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Success Redirect</label>
+                    <div class="p-4 bg-blue-50 rounded-xl border border-blue-100 flex-grow">
+                        <div class="flex gap-3">
+                            <i data-feather="link" class="text-blue-600 w-4 h-4 flex-shrink-0 mt-0.5"></i>
+                            <div class="text-[12px] text-blue-900 leading-relaxed">
+                                <strong class="block mb-1 text-blue-950">Direct Handshake</strong>
+                                Add the <code class="bg-blue-100 px-1 rounded text-blue-800 font-bold">redirect</code> parameter to the URL.
+                                <br><br>
+                                Once the verification is successful, the iframe will automatically trigger a top-level browser redirect to the URL you specified.
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div id="success-view" class="hidden py-8 text-center fade-in">
-                <div class="mb-4 flex justify-center">
-                    <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-                        <i data-feather="check-circle" class="w-12 h-12"></i>
-                    </div>
-                </div>
-                <h3 class="text-2xl font-bold text-slate-800">Verified!</h3>
-                <p class="text-slate-500 mt-2">Mobile identity handshake successful.</p>
-                <p id="redirect-msg" class="text-blue-600 text-sm mt-4 font-medium animate-pulse hidden">Redirecting you now...</p>
+            <div class="p-5 bg-slate-50 border-t border-slate-100 flex justify-end items-center gap-4">
+                <button onclick="toggleModal()" class="px-6 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all">
+                    Dismiss
+                </button>
             </div>
         </div>
     </div>
 
-    <div id="mobile-auth-view" class="hidden fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-50">
-        <div class="bg-white rounded-3xl p-8 w-full max-w-sm text-center space-y-6 shadow-2xl">
-            <div class="flex justify-center">
-                <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
-                    <i data-feather="smartphone" class="w-8 h-8"></i>
+    <section id="features" class="py-24 bg-slate-50 scroll-reveal">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid md:grid-cols-3 gap-12">
+                <div class="space-y-4">
+                    <div class="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center">
+                        <i data-feather="smartphone"></i>
+                    </div>
+                    <h3 class="text-xl font-bold">Hardware Locked</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">Bots live in servers. Humans live with phones. We bridge the gap to ensure only real people pass.</p>
+                </div>
+                <div class="space-y-4">
+                    <div class="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center">
+                        <i data-feather="eye-off"></i>
+                    </div>
+                    <h3 class="text-xl font-bold">Privacy First</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">No tracking cookies, no personal data harvesting. Just a cryptographic proof of presence.</p>
+                </div>
+                <div class="space-y-4">
+                    <div class="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center">
+                        <i data-feather="zap"></i>
+                    </div>
+                    <h3 class="text-xl font-bold">Ultra Fast</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">Integrates in minutes. Verified in seconds. Your users will thank you for removing the friction.</p>
                 </div>
             </div>
-            <div>
-                <h2 class="text-xl font-bold text-slate-800">Confirm Identity</h2>
-                <p class="text-slate-500 text-sm mt-2">Tap below to prove you are a human and verify your desktop session.</p>
-            </div>
-            <button id="verify-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg transition-all transform active:scale-95">
-                Verify Now
-            </button>
-            <div class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Secure ScanVerify Node</div>
         </div>
-    </div>
+    </section>
+
+    <footer class="bg-slate-900 text-white py-16 px-6">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10 text-center md:text-left">
+            <div class="flex items-center gap-2">
+                <div class="bg-blue-600 p-2 rounded-xl">
+                    <i data-feather="shield" class="text-white w-5 h-5"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tight">ScanVerify</span>
+            </div>
+            <p class="text-slate-500 text-sm">© 2026 ScanVerify Systems. All rights reserved.</p>
+        </div>
+    </footer>
 
     <script>
         const SUPABASE_URL = 'https://eolqqvhtcxzpahgczvjf.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_fhx-B3Hvc5aexlOzmv39ZQ_Q1HNTtoL';
+        const ENDPOINT_URL = 'https://scanverify-endpoint.pages.dev/captcha';
         
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        let timeLeft = 60;
-        let timerInterval;
-        let fallbackInterval;
+        
         let currentSid = '';
         let channel = null;
-        let isVerified = false;
 
-        async function generateNewQR() {
-            isVerified = false;
+        function toggleModal() {
+            const modal = document.getElementById('get-started-modal');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                feather.replace();
+            } else {
+                modal.classList.add('closing');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('closing');
+                    document.body.style.overflow = 'auto';
+                }, 300);
+            }
+        }
+
+        async function generateQR() {
             const qrContainer = document.getElementById("qrcode");
+            if(!qrContainer) return;
             qrContainer.innerHTML = "";
             currentSid = Math.random().toString(36).substring(2, 12);
             
-            let currentUrl = window.location.href;
-            if (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
-                currentUrl = window.location.href;
-            }
-            
-            const urlObj = new URL(currentUrl);
-            const searchParams = new URLSearchParams(urlObj.search);
-            searchParams.set('sid', currentSid);
-            searchParams.set('view', 'mobile');
-            
-            const finalUrl = `${urlObj.origin}${urlObj.pathname}?${searchParams.toString()}`;
+            const fullUrl = `${ENDPOINT_URL}?sid=${currentSid}&view=mobile`;
             
             new QRCode(qrContainer, {
-                text: finalUrl,
+                text: fullUrl,
                 width: 160,
                 height: 160,
                 colorDark: "#0f172a",
                 colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.L
+                correctLevel: QRCode.CorrectLevel.H
             });
-
-            document.getElementById('overlay').classList.add('hidden');
-            document.getElementById('scanner-visual').classList.remove('hidden');
             
             await supabaseClient
                 .from('verification_sessions')
                 .insert([{ id: currentSid, status: 'pending' }]);
 
-            if (channel) {
-                supabaseClient.removeChannel(channel);
-            }
+            if (channel) supabaseClient.removeChannel(channel);
             
             channel = supabaseClient
-                .channel(`session_updates_${currentSid}`)
+                .channel(`session-${currentSid}`)
                 .on(
                     'postgres_changes',
                     { 
@@ -173,122 +317,50 @@
                         filter: `id=eq.${currentSid}` 
                     },
                     (payload) => {
-                        if (payload.new && payload.new.status === 'verified') {
-                            handleSuccess();
+                        if (payload.new.status === 'verified') {
+                            showSuccess();
                         }
                     }
                 )
                 .subscribe();
 
-            if (fallbackInterval) clearInterval(fallbackInterval);
-            fallbackInterval = setInterval(checkStatusManual, 1000);
-            
-            startTimer();
-        }
-
-        async function checkStatusManual() {
-            if (isVerified) return;
-            const { data } = await supabaseClient
-                .from('verification_sessions')
-                .select('status')
-                .eq('id', currentSid)
-                .maybeSingle();
-            
-            if (data && data.status === 'verified') {
-                handleSuccess();
-            }
-        }
-
-        function handleSuccess() {
-            if (isVerified) return;
-            isVerified = true;
-            
-            if (fallbackInterval) clearInterval(fallbackInterval);
-            if (timerInterval) clearInterval(timerInterval);
-            if (channel) supabaseClient.removeChannel(channel);
-            
-            document.getElementById('status-dot').classList.replace('bg-amber-400', 'bg-green-500');
-            document.getElementById('status-label').textContent = "Handshake complete...";
-            
             setTimeout(() => {
-                document.getElementById('setup-view').classList.add('hidden');
-                document.getElementById('success-view').classList.remove('hidden');
-                feather.replace();
-                
-                const params = new URLSearchParams(window.location.search);
-                const redirectUrl = params.get('page');
-                
-                if (redirectUrl) {
-                    document.getElementById('redirect-msg').classList.remove('hidden');
-                    setTimeout(() => {
-                        try {
-                            if (window.self !== window.top) {
-                                window.top.location.href = redirectUrl;
-                            } else {
-                                window.location.href = redirectUrl;
-                            }
-                        } catch (e) {
-                            window.location.href = redirectUrl;
-                        }
-                    }, 1500);
-                }
-            }, 800);
+                document.getElementById('progress-bar').style.width = '100%';
+            }, 100);
         }
 
-        function startTimer() {
-            if (timerInterval) clearInterval(timerInterval);
-            timeLeft = 60;
-            updateUI();
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                updateUI();
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    if (fallbackInterval) clearInterval(fallbackInterval);
-                    document.getElementById('overlay').classList.remove('hidden');
-                    document.getElementById('scanner-visual').classList.add('hidden');
-                }
-            }, 1000);
-        }
-
-        function updateUI() {
-            const min = Math.floor(timeLeft / 60);
-            const sec = timeLeft % 60;
-            const timerEl = document.getElementById('timer');
-            const progressEl = document.getElementById('progress-bar');
-            if (timerEl) timerEl.textContent = `${min}:${sec.toString().padStart(2, '0')}`;
-            if (progressEl) progressEl.style.width = `${(timeLeft / 60) * 100}%`;
-        }
-
-        window.onload = async () => {
+        function showSuccess() {
+            const setupView = document.getElementById('setup-view');
+            const successView = document.getElementById('success-view');
+            setupView.classList.add('hidden');
+            successView.classList.remove('hidden');
             feather.replace();
-            const params = new URLSearchParams(window.location.search);
-            const view = params.get('view');
-            const sid = params.get('sid');
+        }
 
-            if (view === 'mobile' && sid) {
-                document.getElementById('desktop-view').classList.add('hidden');
-                document.getElementById('mobile-auth-view').classList.remove('hidden');
-                
-                document.getElementById('verify-button').onclick = async () => {
-                    const { error } = await supabaseClient
-                        .from('verification_sessions')
-                        .update({ status: 'verified' })
-                        .eq('id', sid);
+        function copyEmbedCode() {
+            const code = document.getElementById('embed-code').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.querySelector('[onclick="copyEmbedCode()"]');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i data-feather="check" class="w-4 h-4"></i>';
+                feather.replace();
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    feather.replace();
+                }, 2000);
+            });
+        }
 
-                    if (!error) {
-                        document.getElementById('verify-button').disabled = true;
-                        document.getElementById('verify-button').textContent = "Verified ✅";
-                        document.getElementById('verify-button').classList.replace('bg-blue-600', 'bg-green-600');
-                        
-                        setTimeout(() => {
-                            document.body.innerHTML = '<div class="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-white text-center font-bold">Verification successful. Returning to desktop...</div>';
-                        }, 1000);
-                    }
-                };
-            } else {
-                generateNewQR();
-            }
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('active');
+            });
+        }, { threshold: 0.15 });
+
+        window.onload = () => {
+            feather.replace();
+            generateQR();
+            document.querySelectorAll('.scroll-reveal').forEach(el => observer.observe(el));
         };
     </script>
 </body>
