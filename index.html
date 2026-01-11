@@ -117,7 +117,6 @@
     <script>
         const SUPABASE_URL = 'https://eolqqvhtcxzpahgczvjf.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_fhx-B3Hvc5aexlOzmv39ZQ_Q1HNTtoL';
-        
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let timeLeft = 60;
@@ -153,45 +152,24 @@
                 .from('verification_sessions')
                 .insert([{ id: currentSid, status: 'pending' }]);
 
-            if (channel) {
-                supabaseClient.removeChannel(channel);
-            }
+            if (channel) supabaseClient.removeChannel(channel);
             
             channel = supabaseClient
                 .channel(`session_updates_${currentSid}`)
-                .on(
-                    'postgres_changes',
-                    { 
-                        event: 'UPDATE', 
-                        schema: 'public', 
-                        table: 'verification_sessions', 
-                        filter: `id=eq.${currentSid}` 
-                    },
-                    (payload) => {
-                        if (payload.new && payload.new.status === 'verified') {
-                            handleSuccess();
-                        }
-                    }
-                )
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'verification_sessions', filter: `id=eq.${currentSid}` }, (payload) => {
+                    if (payload.new && payload.new.status === 'verified') handleSuccess();
+                })
                 .subscribe();
 
             if (fallbackInterval) clearInterval(fallbackInterval);
             fallbackInterval = setInterval(checkStatusManual, 1000);
-            
             startTimer();
         }
 
         async function checkStatusManual() {
             if (isVerified) return;
-            const { data } = await supabaseClient
-                .from('verification_sessions')
-                .select('status')
-                .eq('id', currentSid)
-                .maybeSingle();
-            
-            if (data && data.status === 'verified') {
-                handleSuccess();
-            }
+            const { data } = await supabaseClient.from('verification_sessions').select('status').eq('id', currentSid).maybeSingle();
+            if (data && data.status === 'verified') handleSuccess();
         }
 
         function handleSuccess() {
@@ -211,21 +189,21 @@
                 feather.replace();
                 
                 const params = new URLSearchParams(window.location.search);
-                const redirectB64 = params.get('redirect');
+                const pageB64 = params.get('page');
                 
-                if (redirectB64) {
+                if (pageB64) {
                     try {
-                        const redirectUrl = atob(redirectB64);
+                        const decodedUrl = atob(pageB64);
                         const btn = document.getElementById('manual-redirect-btn');
                         btn.classList.remove('hidden');
-                        btn.onclick = () => window.location.href = redirectUrl;
+                        btn.onclick = () => window.top.location.href = decodedUrl;
 
                         document.getElementById('redirect-msg').classList.remove('hidden');
                         setTimeout(() => {
-                            window.location.href = redirectUrl;
+                            window.top.location.href = decodedUrl;
                         }, 2500);
                     } catch (e) {
-                        console.error("Failed to decode redirect URL", e);
+                        console.error("Base64 decoding for page parameter failed", e);
                     }
                 }
             }, 800);
@@ -265,18 +243,12 @@
             if (view === 'mobile' && sid) {
                 document.getElementById('desktop-view').classList.add('hidden');
                 document.getElementById('mobile-auth-view').classList.remove('hidden');
-                
                 document.getElementById('verify-button').onclick = async () => {
-                    const { error } = await supabaseClient
-                        .from('verification_sessions')
-                        .update({ status: 'verified' })
-                        .eq('id', sid);
-
+                    const { error } = await supabaseClient.from('verification_sessions').update({ status: 'verified' }).eq('id', sid);
                     if (!error) {
                         document.getElementById('verify-button').disabled = true;
                         document.getElementById('verify-button').textContent = "Verified ✅";
                         document.getElementById('verify-button').classList.replace('bg-blue-600', 'bg-green-600');
-                        
                         setTimeout(() => {
                             document.body.innerHTML = '<div class="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-white text-center font-bold">Verification successful. Returning to desktop...</div>';
                         }, 1000);
