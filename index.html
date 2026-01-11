@@ -33,7 +33,7 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4 font-sans">
 
     <div id="desktop-view" class="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
         <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -87,7 +87,7 @@
                     </div>
                 </div>
                 <h3 class="text-2xl font-bold text-slate-800">Verified!</h3>
-                <p class="text-slate-500 mt-2">Verification successful. You can now redirect to the page.</p>
+                <p class="text-slate-500 mt-2">Verification successful. Preparing to redirect...</p>
                 <button id="manual-redirect-btn" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all hidden">
                     Go to Page
                 </button>
@@ -126,13 +126,11 @@
         let channel = null;
         let isVerified = false;
 
-        function robustAtob(str) {
+        function decodeBase64Url(str) {
             try {
                 str = str.replace(/-/g, '+').replace(/_/g, '/');
                 while (str.length % 4) str += '=';
-                return decodeURIComponent(atob(str).split('').map(function(c) {
-                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                }).join(''));
+                return atob(str);
             } catch (e) {
                 return atob(str);
             }
@@ -145,9 +143,9 @@
             currentSid = Math.random().toString(36).substring(2, 12);
             
             const params = new URLSearchParams(window.location.search);
-            const pageParam = params.get('page') || '';
+            const pageParam = params.get('page');
             
-            const urlObj = new URL(window.location.origin + window.location.pathname);
+            const urlObj = new URL(window.location.href);
             urlObj.searchParams.set('sid', currentSid);
             urlObj.searchParams.set('view', 'mobile');
             if (pageParam) urlObj.searchParams.set('page', pageParam);
@@ -164,14 +162,19 @@
             document.getElementById('overlay').classList.add('hidden');
             document.getElementById('scanner-visual').classList.remove('hidden');
             
-            await supabaseClient
+            const { error } = await supabaseClient
                 .from('verification_sessions')
                 .insert([{ id: currentSid, status: 'pending' }]);
+
+            if (error) {
+                setTimeout(generateNewQR, 1000);
+                return;
+            }
 
             if (channel) supabaseClient.removeChannel(channel);
             
             channel = supabaseClient
-                .channel(`session_updates_${currentSid}`)
+                .channel(`session_${currentSid}`)
                 .on('postgres_changes', { 
                     event: 'UPDATE', 
                     schema: 'public', 
@@ -206,12 +209,12 @@
             if (isVerified) return;
             isVerified = true;
             
-            if (fallbackInterval) clearInterval(fallbackInterval);
-            if (timerInterval) clearInterval(timerInterval);
+            clearInterval(fallbackInterval);
+            clearInterval(timerInterval);
             if (channel) supabaseClient.removeChannel(channel);
             
             document.getElementById('status-dot').classList.replace('bg-amber-400', 'bg-green-500');
-            document.getElementById('status-label').textContent = "Handshake complete...";
+            document.getElementById('status-label').textContent = "Verified! Redirecting...";
             
             setTimeout(() => {
                 document.getElementById('setup-view').classList.add('hidden');
@@ -223,19 +226,17 @@
                 
                 if (pageB64) {
                     try {
-                        const decodedUrl = robustAtob(pageB64);
+                        const decodedUrl = decodeBase64Url(pageB64);
                         const btn = document.getElementById('manual-redirect-btn');
                         btn.classList.remove('hidden');
-                        btn.onclick = () => {
-                            window.top.location.href = decodedUrl;
-                        };
+                        btn.onclick = () => { window.top.location.href = decodedUrl; };
 
                         document.getElementById('redirect-msg').classList.remove('hidden');
                         setTimeout(() => {
                             window.top.location.href = decodedUrl;
-                        }, 2000);
+                        }, 1200);
                     } catch (e) {
-                        console.error("Redirection failed", e);
+                        console.error("Redirection error:", e);
                     }
                 }
             }, 500);
@@ -250,7 +251,7 @@
                 updateUI();
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
-                    if (fallbackInterval) clearInterval(fallbackInterval);
+                    clearInterval(fallbackInterval);
                     document.getElementById('overlay').classList.remove('hidden');
                     document.getElementById('scanner-visual').classList.add('hidden');
                 }
@@ -276,18 +277,24 @@
                 document.getElementById('desktop-view').classList.add('hidden');
                 document.getElementById('mobile-auth-view').classList.remove('hidden');
                 document.getElementById('verify-button').onclick = async () => {
+                    document.getElementById('verify-button').disabled = true;
+                    document.getElementById('verify-button').innerHTML = '<i data-feather="loader" class="animate-spin inline mr-2"></i> Verifying...';
+                    feather.replace();
+
                     const { error } = await supabaseClient
                         .from('verification_sessions')
                         .update({ status: 'verified' })
                         .eq('id', sid);
 
                     if (!error) {
-                        document.getElementById('verify-button').disabled = true;
                         document.getElementById('verify-button').textContent = "Verified ✅";
                         document.getElementById('verify-button').classList.replace('bg-blue-600', 'bg-green-600');
                         setTimeout(() => {
-                            document.body.innerHTML = '<div class="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-white text-center font-bold">Session confirmed. You can close this tab.</div>';
-                        }, 1500);
+                            document.body.innerHTML = '<div class="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-white text-center font-bold">Session confirmed. Desktop will redirect.</div>';
+                        }, 1000);
+                    } else {
+                        document.getElementById('verify-button').disabled = false;
+                        document.getElementById('verify-button').textContent = "Retry Verification";
                     }
                 };
             } else {
