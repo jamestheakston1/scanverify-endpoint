@@ -132,9 +132,13 @@
             qrContainer.innerHTML = "";
             currentSid = Math.random().toString(36).substring(2, 12);
             
+            const params = new URLSearchParams(window.location.search);
+            const pageParam = params.get('page') || '';
+            
             const urlObj = new URL(window.location.origin + window.location.pathname);
             urlObj.searchParams.set('sid', currentSid);
             urlObj.searchParams.set('view', 'mobile');
+            if (pageParam) urlObj.searchParams.set('page', pageParam);
             
             new QRCode(qrContainer, {
                 text: urlObj.toString(),
@@ -156,20 +160,34 @@
             
             channel = supabaseClient
                 .channel(`session_updates_${currentSid}`)
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'verification_sessions', filter: `id=eq.${currentSid}` }, (payload) => {
-                    if (payload.new && payload.new.status === 'verified') handleSuccess();
+                .on('postgres_changes', { 
+                    event: 'UPDATE', 
+                    schema: 'public', 
+                    table: 'verification_sessions', 
+                    filter: `id=eq.${currentSid}` 
+                }, (payload) => {
+                    if (payload.new && payload.new.status === 'verified') {
+                        handleSuccess();
+                    }
                 })
                 .subscribe();
 
             if (fallbackInterval) clearInterval(fallbackInterval);
-            fallbackInterval = setInterval(checkStatusManual, 1000);
+            fallbackInterval = setInterval(checkStatusManual, 1500);
             startTimer();
         }
 
         async function checkStatusManual() {
             if (isVerified) return;
-            const { data } = await supabaseClient.from('verification_sessions').select('status').eq('id', currentSid).maybeSingle();
-            if (data && data.status === 'verified') handleSuccess();
+            const { data, error } = await supabaseClient
+                .from('verification_sessions')
+                .select('status')
+                .eq('id', currentSid)
+                .maybeSingle();
+            
+            if (data && data.status === 'verified') {
+                handleSuccess();
+            }
         }
 
         function handleSuccess() {
@@ -196,17 +214,19 @@
                         const decodedUrl = atob(pageB64);
                         const btn = document.getElementById('manual-redirect-btn');
                         btn.classList.remove('hidden');
-                        btn.onclick = () => window.top.location.href = decodedUrl;
+                        btn.onclick = () => {
+                            window.top.location.href = decodedUrl;
+                        };
 
                         document.getElementById('redirect-msg').classList.remove('hidden');
                         setTimeout(() => {
                             window.top.location.href = decodedUrl;
-                        }, 2500);
+                        }, 2000);
                     } catch (e) {
-                        console.error("Base64 decoding for page parameter failed", e);
+                        console.error("Redirection failed", e);
                     }
                 }
-            }, 800);
+            }, 500);
         }
 
         function startTimer() {
@@ -244,14 +264,18 @@
                 document.getElementById('desktop-view').classList.add('hidden');
                 document.getElementById('mobile-auth-view').classList.remove('hidden');
                 document.getElementById('verify-button').onclick = async () => {
-                    const { error } = await supabaseClient.from('verification_sessions').update({ status: 'verified' }).eq('id', sid);
+                    const { error } = await supabaseClient
+                        .from('verification_sessions')
+                        .update({ status: 'verified' })
+                        .eq('id', sid);
+
                     if (!error) {
                         document.getElementById('verify-button').disabled = true;
                         document.getElementById('verify-button').textContent = "Verified ✅";
                         document.getElementById('verify-button').classList.replace('bg-blue-600', 'bg-green-600');
                         setTimeout(() => {
-                            document.body.innerHTML = '<div class="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-white text-center font-bold">Verification successful. Returning to desktop...</div>';
-                        }, 1000);
+                            document.body.innerHTML = '<div class="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-white text-center font-bold">Session confirmed. You can close this tab.</div>';
+                        }, 1500);
                     }
                 };
             } else {
