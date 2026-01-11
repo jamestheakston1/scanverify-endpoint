@@ -126,6 +126,18 @@
         let channel = null;
         let isVerified = false;
 
+        function robustAtob(str) {
+            try {
+                str = str.replace(/-/g, '+').replace(/_/g, '/');
+                while (str.length % 4) str += '=';
+                return decodeURIComponent(atob(str).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+            } catch (e) {
+                return atob(str);
+            }
+        }
+
         async function generateNewQR() {
             isVerified = false;
             const qrContainer = document.getElementById("qrcode");
@@ -179,7 +191,7 @@
 
         async function checkStatusManual() {
             if (isVerified) return;
-            const { data, error } = await supabaseClient
+            const { data } = await supabaseClient
                 .from('verification_sessions')
                 .select('status')
                 .eq('id', currentSid)
@@ -211,7 +223,7 @@
                 
                 if (pageB64) {
                     try {
-                        const decodedUrl = atob(pageB64);
+                        const decodedUrl = robustAtob(pageB64);
                         const btn = document.getElementById('manual-redirect-btn');
                         btn.classList.remove('hidden');
                         btn.onclick = () => {
