@@ -211,17 +211,22 @@
                 feather.replace();
                 
                 const params = new URLSearchParams(window.location.search);
-                const redirectUrl = params.get('page');
+                const redirectB64 = params.get('redirect');
                 
-                if (redirectUrl) {
-                    const btn = document.getElementById('manual-redirect-btn');
-                    btn.classList.remove('hidden');
-                    btn.onclick = () => window.location.href = redirectUrl;
+                if (redirectB64) {
+                    try {
+                        const redirectUrl = atob(redirectB64);
+                        const btn = document.getElementById('manual-redirect-btn');
+                        btn.classList.remove('hidden');
+                        btn.onclick = () => window.location.href = redirectUrl;
 
-                    document.getElementById('redirect-msg').classList.remove('hidden');
-                    setTimeout(() => {
-                        window.location.href = redirectUrl;
-                    }, 2500);
+                        document.getElementById('redirect-msg').classList.remove('hidden');
+                        setTimeout(() => {
+                            window.location.href = redirectUrl;
+                        }, 2500);
+                    } catch (e) {
+                        console.error("Failed to decode redirect URL", e);
+                    }
                 }
             }, 800);
         }
